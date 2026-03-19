@@ -1,0 +1,73 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Build Release
+
+on:
+  push:
+    branches: 
+      - 'feature/upgrade-go125-gha-wf-test'
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Create Release
+      id: create_release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "${{ github.ref_name }}" \
+          --title "Release ${{ github.ref_name }}" \
+          --notes-file CHANGELOG.md \
+          --draft || echo "Release already exists, skipping creation."
+
+  build_release:
+    runs-on: ubuntu-latest
+    needs: create_release
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        go-os: [ 'darwin', 'linux', 'windows' ]
+        go-arch: [ 'arm64', 'amd64' ]
+        
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Go
+      uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      with:
+        go-version: 1.25
+    
+    - name: Install dependencies
+      run: go get .
+
+    - name: Build
+      run: env GOOS=${{ matrix.go-os }} GOARCH=${{ matrix.go-arch }} go build -v -o ${{ matrix.go-os }}_${{ matrix.go-arch }}/
+
+#    - name: Test
+#      run: go test -v ./...
+
+    - name: Tar
+      run: tar -zcvf ${{ matrix.go-os }}_${{ matrix.go-arch }}.tar.gz ${{ matrix.go-os }}_${{ matrix.go-arch }}/*
+
+#    - name: Upload artifacts
+#      uses: actions/upload-artifact@v3
+#      with:
+#        name: build-${{ matrix.go-os }}_${{ matrix.go-arch }}
+#        path: ${{ matrix.go-os }}_${{ matrix.go-arch }}.tar.gz
+
+    - name: Upload release artifact
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        ASSET_NAME="odm-${{ matrix.go-os }}_${{ matrix.go-arch }}.tar.gz"
+        mv "./${{ matrix.go-os }}_${{ matrix.go-arch }}.tar.gz" "$ASSET_NAME"
+        gh release upload "${{ github.ref_name }}" "$ASSET_NAME" --clobber

@@ -1,6 +1,6 @@
 module github.com/johanfylling/odm
 
-go 1.20
+go 1.25
 
 require (
 	github.com/go-git/go-git/v5 v5.11.0

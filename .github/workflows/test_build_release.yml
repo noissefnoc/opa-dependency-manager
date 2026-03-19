@@ -5,8 +5,8 @@ name: Build Release
 
 on:
   push:
-    tags: 
-    - 'v[0-9]+.[0-9]+.[0-9]+'
+    branches: 
+      - 'feature/upgrade-go125-gha-wf-test'
 
 jobs:
   create_release:
